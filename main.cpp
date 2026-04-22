@@ -2,6 +2,17 @@
 #include <fstream>
 using namespace std;
 
+/* Main Notes:
+ * two-pass/parse approach, iterate through instructions twice (bc of jumps)
+    - store jump labels in hashmap ["label name"] : number in program counter
+    - on second pass, use label hashmap to jump to place in program 
+
+* on second pass: need to extract [operation] [reg] -- [depends on instr] -- [dep on instr]
+
+* need to simulate 5 stage pipeline process (implementing control unit)
+
+*/
+
 int main(){
 
     ifstream file("mips_input.asm");
@@ -11,8 +22,6 @@ int main(){
         cout << "Error opening file.";
         return 1;
     }
-
-    // operation -- regDestination -- [reg or int or line] -- [reg or int or nothing]
 
 
     while(getline(file, line)){

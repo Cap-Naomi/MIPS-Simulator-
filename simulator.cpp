@@ -5,8 +5,9 @@
 #include <iostream>
 using namespace std;
 
-/* Notes: 
+/* Simulator Notes: 
 - State registers: show state at point between stages in pipeline (pipeline latches)
+
 */
 
 
@@ -14,7 +15,7 @@ using namespace std;
 
 // --- CPU --- //
 
-CPU :: CPU() : ALU(regFile), control_unit(regFile, memory){ // initialize ALU with reference to regFile
+CPU :: CPU() : ALU(regFile), control_unit(regFile, memory), memory(regFile){ // initialize ALU with reference to regFile
     int PC = 0;
     string IR = "";
     bool debugMode = false;
@@ -43,7 +44,7 @@ void CPU_ALU :: ADD(string rDest, string r1, string r2){
     regFile.set_val(rDest, result);
 }
 
-//     void ADDI(string rDest, string r1, int num){ cout << "addi"; }
+//     void ADDI(string rDest, string r1, int num){}
 
 //     void SUB(string rDest, string r1, string r2){}
 

@@ -3,19 +3,6 @@
 #include <unordered_map>
 using namespace std;
 
-class CPU
-{
-    public:
-        RegisterFile regFile;
-        CPU_ALU ALU;
-        CPU_Memory memory;
-        Control_Unit control_unit;
-        int PC;
-        string IR;
-        bool debugMode;
-
-        CPU();
-};
 
 
 class RegisterFile{
@@ -67,7 +54,6 @@ class CPU_ALU
 
     public:
         CPU_ALU(RegisterFile &_regFile);
-
         void ADD(string rDest, string r1, string r2);
         void ADDI(string rDest, string r1, int num);
         void SUB(string rDest, string r1, string r2);
@@ -87,11 +73,9 @@ class CPU_Memory
         int data_memory[1024];
         RegisterFile regFile;
 
-        CPU_Memory(RegisterFile);
-
+        CPU_Memory(RegisterFile &_regFile);
         int get_addr(int addr);
         void set_addr(int addr, int val);
-
         void LW(string rDest, int offset, int r1); 
         void SW(string r1, int offest, string rDest);
 };
@@ -114,14 +98,23 @@ class Control_Unit{ // needs access to regFile and memory
     
     public:
         Control_Unit(RegisterFile &_regFile, CPU_Memory &_memory);
-
         void fetch(); // fetch instruction, update pc
-
         void decode(); // decode instruction, read from register file
-
         void execute(); // execute arithmetic instruction, calculate mem addr
-
         void mem(); // read/write data from/to memory
-
         void write_back(); // write data back to regFile
+};
+
+class CPU
+{
+    public:
+        RegisterFile regFile;
+        CPU_ALU ALU;
+        CPU_Memory memory;
+        Control_Unit control_unit;
+        int PC;
+        string IR;
+        bool debugMode;
+
+        CPU();
 };
