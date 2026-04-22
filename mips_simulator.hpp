@@ -3,6 +3,20 @@
 #include <unordered_map>
 using namespace std;
 
+class CPU
+{
+    public:
+        RegisterFile regFile;
+        CPU_ALU ALU;
+        CPU_Memory memory;
+        Control_Unit control_unit;
+        int PC;
+        string IR;
+        bool debugMode;
+
+        CPU();
+};
+
 
 class RegisterFile{
     public:
@@ -41,40 +55,18 @@ class RegisterFile{
             {"$fp", 30},
             {"$ra", 31}};
 
-        int get_val();
-        void set_val();
+        int get_val(string regName);
+        void set_val(string regName, int val);
 };
 
-class Control_Unit{
-    public:
-    // Control unit signals:
-        bool RegDest = false;
-        bool ALUOp = false;
-        bool ALUSrc = false;
-        bool MemRead = false;
-        bool MemWrite = false;
-        bool MemtoReg = false;
-        bool RegWrite = false;
-        bool Branch = false; // jump / beq
-
-        void fetch(); // fetch instruction, update pc
-
-        void decode(); // decode instruction, read from register file
-
-        void execute(); // execute arithmetic instruction, calculate mem addr
-
-        void memory(); // read/write data from/to memory
-
-        void write_back(); // write data back to regFile
-};
 
 class CPU_ALU
 {
     private:
-        RegisterFile &regFile;
+        RegisterFile &regFile; // accessing address of cpu obj regFile
 
     public:
-        CPU_ALU(RegisterFile &regFile);
+        CPU_ALU(RegisterFile &_regFile);
 
         void ADD(string rDest, string r1, string r2);
         void ADDI(string rDest, string r1, int num);
@@ -93,20 +85,43 @@ class CPU_Memory
 {
     public:
         int data_memory[1024];
-        void LW(string rDest, int offset, int r1);
+        RegisterFile regFile;
+
+        CPU_Memory(RegisterFile);
+
+        int get_addr(int addr);
+        void set_addr(int addr, int val);
+
+        void LW(string rDest, int offset, int r1); 
         void SW(string r1, int offest, string rDest);
 };
 
-class CPU
-{
-    public:
-        RegisterFile regFile;
-        CPU_ALU ALU;
-        CPU_Memory Memory;
-        Control_Unit control_unit;
-        int PC;
-        string IR;
-        bool debugMode;
 
-        CPU();
+class Control_Unit{ // needs access to regFile and memory 
+    private:
+    // Control unit signals:
+        bool RegDest = false;
+        bool ALUOp = false;
+        bool ALUSrc = false;
+        bool MemRead = false;
+        bool MemWrite = false;
+        bool MemtoReg = false;
+        bool RegWrite = false;
+        bool Branch = false; // jump / beq
+
+        RegisterFile &regFile; 
+        CPU_Memory &memory;
+    
+    public:
+        Control_Unit(RegisterFile &_regFile, CPU_Memory &_memory);
+
+        void fetch(); // fetch instruction, update pc
+
+        void decode(); // decode instruction, read from register file
+
+        void execute(); // execute arithmetic instruction, calculate mem addr
+
+        void mem(); // read/write data from/to memory
+
+        void write_back(); // write data back to regFile
 };

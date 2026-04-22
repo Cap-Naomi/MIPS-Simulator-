@@ -10,15 +10,11 @@ using namespace std;
 */
 
 
-void CPU_ALU :: ADD(string rDest, string r1, string r2){
-    regFile.registers[regMap[rDest]] = (
-    regFile.registers[regMap[r1]] + regFile.registers[regMap[r2]])
-}
 
 
 // --- CPU --- //
 
-CPU :: CPU(){
+CPU :: CPU() : ALU(regFile), control_unit(regFile, memory){ // initialize ALU with reference to regFile
     int PC = 0;
     string IR = "";
     bool debugMode = false;
@@ -28,17 +24,24 @@ CPU :: CPU(){
 // --- REGISTER FILE --- //
 
 int RegisterFile :: get_val(string regName){
-    return registers[regMap["regName"]];
+    return registers[regMap[regName]];
 }
 
 void RegisterFile :: set_val(string regName, int val){
-    registers[regMap["regName"]] = val;
+    registers[regMap[regName]] = val;
 }
+
 
 
 // --- ALU --- //
 
-//     void ADD(string rDest, string r1, string r2) { cout << "add"; }
+CPU_ALU :: CPU_ALU(RegisterFile &_regFile) : regFile(_regFile) {} // references regFile in CPU class
+
+
+void CPU_ALU :: ADD(string rDest, string r1, string r2){
+    int result = regFile.get_val(r1) + regFile.get_val(r2);
+    regFile.set_val(rDest, result);
+}
 
 //     void ADDI(string rDest, string r1, int num){ cout << "addi"; }
 
@@ -65,6 +68,8 @@ void RegisterFile :: set_val(string regName, int val){
 
 // --- CONTROL UNIT --- //
 
+Control_Unit :: Control_Unit(RegisterFile &_regFile, CPU_Memory &_memory) : regFile(_regFile), memory(_memory) {}
+
 // void fetch(){} // fetch instruction, update pc
 
 // void decode(){} // decode instruction, read from register file
@@ -76,7 +81,9 @@ void RegisterFile :: set_val(string regName, int val){
 // void write_back(){} // write data back to regFile
 
 
+
 // --- MEMORY --- //
+CPU_Memory :: CPU_Memory(RegisterFile &_regFile) : regFile(_regFile){} // for read/write to/from regFile
 
 //     void LW(string rDest, int offset, int r1){}
 
