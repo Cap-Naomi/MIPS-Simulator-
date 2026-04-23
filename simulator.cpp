@@ -15,16 +15,6 @@ using namespace std;
 
 
 
-
-// --- CPU --- //
-
-CPU :: CPU() : ALU(regFile), control_unit(regFile, memory), memory(regFile){ // initialize ALU with reference to regFile
-    int PC = 0;
-    string IR = "";
-    bool debugMode = false;
-}
-
-
 // --- REGISTER FILE --- //
 
 int RegisterFile :: get_val(string regName){
@@ -35,7 +25,7 @@ void RegisterFile :: set_val(string regName, int val){
     registers[regMap[regName]] = val;
 }
 
-void RegisterFile :: dump(){
+void RegisterFile :: dump() const{
     for (const auto& pair : regMap) {
         cout << pair.first << ": " << registers[pair.second];
         if (pair.second % 4 == 3) { // print 4 registers per line
@@ -60,7 +50,7 @@ void CPU_ALU :: ADD(string rDest, string r1, string r2){
 void CPU_ALU :: ADDI(string rDest, string r1, int num){
         int result = regFile.get_val(r1) + num;
         regFile.set_val(rDest, result);
-    }
+}
 
 void CPU_ALU :: SUB(string rDest, string r1, string r2){
     int result = regFile.get_val(r1) - regFile.get_val(r2);
@@ -132,7 +122,7 @@ void CPU_Memory :: SW(string r1, int offset, string rDest){
     set_addr(addr, val);
 }
 
-void CPU_Memory :: dump(){
+void CPU_Memory :: dump() const{
     for (int i = 0; i < 100; i++) {
         cout << "Address " << i << ": " << data_memory[i] << '\n';
     }
@@ -203,9 +193,9 @@ Instruction Control_Unit :: decode(const string& rawLine, vector<string> tokens,
                                          const unordered_map<string, int>& labels){ // decode instruction, read from register file
 
     Instruction instr;
-    ControlSignals cs;
     string opText = tokens[0];
     instr.op = parseOpcode(opText);
+    instr.raw = rawLine; // ???
 
     switch (instr.op) {
         case Opcode::ADD:
@@ -216,8 +206,8 @@ Instruction Control_Unit :: decode(const string& rawLine, vector<string> tokens,
             instr.rs = regFile.regMap[tokens[2]];
             instr.rt = parseNumber(tokens[3]);
 
-            cs.regDst = true;
-            cs.regWrite = true;
+            instr.cs.regDst = true;
+            instr.cs.regWrite = true;
             break;
 
         case Opcode::SUB:
@@ -228,8 +218,8 @@ Instruction Control_Unit :: decode(const string& rawLine, vector<string> tokens,
             instr.rs = regFile.regMap[tokens[2]];
             instr.rt = parseNumber(tokens[3]);
             
-            cs.regDst = true;
-            cs.regWrite = true;
+            instr.cs.regDst = true;
+            instr.cs.regWrite = true;
             break;
 
         case Opcode::MUL:
@@ -240,8 +230,8 @@ Instruction Control_Unit :: decode(const string& rawLine, vector<string> tokens,
             instr.rs = regFile.regMap[tokens[2]];
             instr.rt = parseNumber(tokens[3]);
 
-            cs.regDst = true;
-            cs.regWrite = true;
+            instr.cs.regDst = true;
+            instr.cs.regWrite = true;
             break;
 
         case Opcode::AND_OP:
@@ -252,8 +242,8 @@ Instruction Control_Unit :: decode(const string& rawLine, vector<string> tokens,
             instr.rs = regFile.regMap[tokens[2]];
             instr.rt = parseNumber(tokens[3]);
 
-            cs.regDst = true;
-            cs.regWrite = true;
+            instr.cs.regDst = true;
+            instr.cs.regWrite = true;
             break;
 
         case Opcode::OR_OP:
@@ -264,8 +254,8 @@ Instruction Control_Unit :: decode(const string& rawLine, vector<string> tokens,
             instr.rs = regFile.regMap[tokens[2]];
             instr.rt = regFile.regMap[tokens[3]];
 
-            cs.regDst = true;
-            cs.regWrite = true;
+            instr.cs.regDst = true;
+            instr.cs.regWrite = true;
             break;
 
         case Opcode::ADDI:
@@ -276,8 +266,8 @@ Instruction Control_Unit :: decode(const string& rawLine, vector<string> tokens,
             instr.rs = regFile.regMap[tokens[2]];
             instr.imm = parseNumber(tokens[3]);
 
-            cs.aluSrc = true;
-            cs.regWrite = true;
+            instr.cs.aluSrc = true;
+            instr.cs.regWrite = true;
             break;
 
         case Opcode::SLL:
@@ -289,8 +279,8 @@ Instruction Control_Unit :: decode(const string& rawLine, vector<string> tokens,
             instr.rt = regFile.regMap[tokens[2]];
             instr.shamt = static_cast<int>(parseNumber(tokens[3]));
 
-            cs.regDst = true;
-            cs.regWrite = true;
+            instr.cs.regDst = true;
+            instr.cs.regWrite = true;
             break;
 
         case Opcode::LW:
@@ -301,10 +291,10 @@ Instruction Control_Unit :: decode(const string& rawLine, vector<string> tokens,
             instr.imm = parseNumber(tokens[2]);
             instr.rs = regFile.regMap[tokens[3]];
 
-            cs.aluSrc = true;
-            cs.memRead = true;
-            cs.memToReg = true;
-            cs.regWrite = true;
+            instr.cs.aluSrc = true;
+            instr.cs.memRead = true;
+            instr.cs.memToReg = true;
+            instr.cs.regWrite = true;
             break;
 
         case Opcode::SW:
@@ -315,8 +305,8 @@ Instruction Control_Unit :: decode(const string& rawLine, vector<string> tokens,
             instr.imm = parseNumber(tokens[2]);
             instr.rs = regFile.regMap[tokens[3]];
 
-            cs.aluSrc = true;
-            cs.memWrite = true;
+            instr.cs.aluSrc = true;
+            instr.cs.memWrite = true;
             break;
 
         case Opcode::BEQ:
@@ -328,7 +318,7 @@ Instruction Control_Unit :: decode(const string& rawLine, vector<string> tokens,
             instr.label = tokens[3];
             instr.target = handleLabel(tokens[3], labels);
 
-            cs.branch = true;
+            instr.cs.branch = true;
             break;
 
         case Opcode::J:
@@ -338,7 +328,7 @@ Instruction Control_Unit :: decode(const string& rawLine, vector<string> tokens,
             instr.label = tokens[1];
             instr.target = handleLabel(tokens[1], labels);
 
-            cs.jump = true;
+            instr.cs.jump = true;
             break;
 
         case Opcode::NOP:
@@ -352,19 +342,262 @@ Instruction Control_Unit :: decode(const string& rawLine, vector<string> tokens,
 
 }
 
+// --- CPU --- //
 
-void Control_Unit :: execute(){ // execute arithmetic instruction, calculate mem addr
+CPU ::CPU(bool debug = false) : ALU(regFile), control_unit(regFile, memory), memory(regFile), debugMode(debug){}
+
+// --- PIPELINE STAGES --- //
+
+IF_ID CPU :: fetchStage() {
+    IF_ID next; 
+    if (pc >= 0 && pc < static_cast<int>(program.size())) {
+        next.valid = true;
+        next.pc = pc;
+        next.instr = program[pc];
+        ++pc;
+    }
+    return next;
 }
 
-void Control_Unit :: mem(){ // read/write data from/to memory
+ID_EX CPU :: decodeStage(const IF_ID& current) {
+    ID_EX next;
+    if (!current.valid) {
+        return next;
+    }
+
+    next.valid = true;
+    next.pc = current.pc;
+    next.instr = current.instr;
+    next.rsVal = regFile.registers[current.instr.rs];
+    next.rtVal = regFile.registers[current.instr.rt];
+    next.control = current.instr.cs;
 }
 
-void Control_Unit :: write_back(){ // write data back to regFile
+EX_MEM CPU :: executeStage(const ID_EX& current) {
+    EX_MEM next;
+    if (!current.valid) {
+        return next;
+    }
+
+    next.valid = true;
+    next.pc = current.pc;
+    next.instr = current.instr;
+    next.rtVal = current.rtVal;
+    next.control = current.control;
+    next.destReg = current.control.regDst ? current.instr.rd : current.instr.rt; // for R-type, dest reg is rd; for I-type, dest reg is rt
+
+    switch (current.instr.op) {
+        case Opcode::ADD:
+            next.aluResult = current.rsVal + current.rtVal;
+            break;
+        case Opcode::ADDI:
+            next.aluResult = current.rsVal + current.instr.imm;
+            break;
+        case Opcode::SUB:
+            next.aluResult = current.rsVal - current.rtVal;
+            break;
+        case Opcode::MUL:
+            next.aluResult = current.rsVal * current.rtVal;
+            break;
+        case Opcode::AND_OP:
+            next.aluResult = current.rsVal & current.rtVal;
+            break;
+        case Opcode::OR_OP:
+            next.aluResult = current.rsVal | current.rtVal;
+            break;
+        case Opcode::SLL:
+            next.aluResult = static_cast<int32_t>(static_cast<uint32_t>(current.rtVal) << current.instr.shamt);
+            break;
+        case Opcode::SRL:
+            next.aluResult = static_cast<int32_t>(static_cast<uint32_t>(current.rtVal) >> current.instr.shamt);
+            break;
+        case Opcode::LW:
+        case Opcode::SW:
+            next.aluResult = current.rsVal + current.instr.imm;
+            break;
+        case Opcode::BEQ:
+            next.zero = (current.rsVal == current.rtVal);
+            next.takeBranch = next.zero;
+            next.branchTarget = current.instr.target;
+            next.aluResult = current.rsVal - current.rtVal;
+            break;
+        case Opcode::J:
+            next.takeBranch = true;
+            next.branchTarget = current.instr.target;
+            break;
+        case Opcode::NOP:
+            break;
+    }
+
+    return next;
+}
+
+MEM_WB CPU :: memoryStage(const EX_MEM& current) {
+    MEM_WB next;
+    if (!current.valid) {
+        return next;
+    }
+
+    next.valid = true;
+    next.pc = current.pc;
+    next.instr = current.instr;
+    next.aluResult = current.aluResult;
+    next.destReg = current.destReg;
+    next.control = current.control;
+
+    if (current.control.memRead) {
+        next.memData = memory.get_addr(current.aluResult);
+    }
+    if (current.control.memWrite) {
+        memory.set_addr(current.aluResult, current.rtVal);
+    }
+
+    return next;
+}
+
+void CPU :: writeBackStage(const MEM_WB& current) {
+    if (!current.valid) {
+        return;
+    }
+
+    if (current.control.regWrite) { // if instruction writes to register, write either memData (for LW) or aluResult (for R-type and ADDI) back to regFile
+        // registers.write(current.destReg, current.control.memToReg ? current.memData : current.aluResult);
+        int writeData = current.control.memToReg ? current.memData : current.aluResult;
+        string destRegName;
+        for (const auto& pair : regFile.regMap) {
+            if (pair.second == current.destReg) {
+                destRegName = pair.first;
+                break;
+            }
+        }
+        regFile.set_val(destRegName, writeData);
+    }
+}
+
+static string controlText(const ControlSignals& c) {
+    ostringstream out;
+    out << "RegDst=" << c.regDst
+        << " ALUSrc=" << c.aluSrc
+        << " MemRead=" << c.memRead
+        << " MemWrite=" << c.memWrite
+        << " MemToReg=" << c.memToReg
+        << " RegWrite=" << c.regWrite
+        << " Branch=" << c.branch
+        << " Jump=" << c.jump
+        << " ALUOp=" << c.aluOp;
+    return out.str();
+}
+
+void CPU :: printPipelineState() const {
+    cout << "IF/ID  : ";
+    if (if_id.valid) {
+        cout << "PC=" << if_id.pc << " Instr={" << if_id.instr.raw << "}";
+    } else {
+        cout << "empty";
+    }
+    cout << '\n';
+
+    cout << "ID/EX  : ";
+    if (id_ex.valid) {
+        cout << "PC=" << id_ex.pc
+                    << " Instr={" << id_ex.instr.raw << "} "
+                    << "rsVal=" << id_ex.rsVal
+                    << " rtVal=" << id_ex.rtVal << '\n'
+                    << "         Control: " << controlText(id_ex.control);
+    } else {
+        cout << "empty";
+    }
+    cout << '\n';
+
+    cout << "EX/MEM : ";
+    if (ex_mem.valid) {
+        cout << "PC=" << ex_mem.pc
+                    << " Instr={" << ex_mem.instr.raw << "} "
+                    << "ALUResult=" << ex_mem.aluResult
+                    << " rtVal=" << ex_mem.rtVal
+                    << " destReg=" << ex_mem.destReg
+                    << " takeBranch=" << ex_mem.takeBranch;
+        if (ex_mem.takeBranch) {
+            cout << " target=" << ex_mem.branchTarget;
+        }
+        cout << '\n'
+                    << "         Control: " << controlText(ex_mem.control);
+    } else {
+        cout << "empty";
+    }
+    cout << '\n';
+
+    cout << "MEM/WB : ";
+    if (mem_wb.valid) {
+        cout << "PC=" << mem_wb.pc
+                    << " Instr={" << mem_wb.instr.raw << "} "
+                    << "ALUResult=" << mem_wb.aluResult
+                    << " memData=" << mem_wb.memData
+                    << " destReg=" << mem_wb.destReg << '\n'
+                    << "         Control: " << controlText(mem_wb.control);
+    } else {
+        cout << "empty";
+    }
+    cout << '\n';
 }
 
 
+// --- SIMULATION CONTROL --- //
+
+void CPU :: run() {
+    bool pipelineEmpty = !(if_id.valid || id_ex.valid || ex_mem.valid || mem_wb.valid);
+
+    while (pc < static_cast<int>(program.size()) || !pipelineEmpty) {
+        ++cycle;
+
+        writeBackStage(mem_wb);
+
+        MEM_WB next_mem_wb = memoryStage(ex_mem);
+        EX_MEM next_ex_mem = executeStage(id_ex);
+        ID_EX next_id_ex = decodeStage(if_id);
+        IF_ID next_if_id = fetchStage();
+
+        if (next_ex_mem.takeBranch) {
+            next_id_ex = ID_EX{};
+            next_if_id = IF_ID{};
+            pc = next_ex_mem.branchTarget;
+        }
+
+        mem_wb = next_mem_wb;
+        ex_mem = next_ex_mem;
+        id_ex = next_id_ex;
+        if_id = next_if_id;
+
+        if (debugMode) {
+            printDebugState();
+        }
+    }
+}
+
+void loadProgram(const string& filename) {
+}
 
 
+// --- OUTPUT/DEBUGGING --- //
 
+void CPU :: printDebugState() const {
+    cout << "\n========================================\n";
+    cout << "Cycle: " << cycle << '\n';
+    cout << "Next fetch PC: " << pc << '\n';
+    printPipelineState();
+    cout << '\n';
+    regFile.dump();
+    cout << '\n';
+    memory.dump();
+    cout << "========================================\n";
+}
+
+void CPU :: printFinalState() const {
+    cout << "\nFinal Machine State\n";
+    cout << "===================\n";
+    regFile.dump();
+    cout << '\n';
+    memory.dump();
+}
 
 

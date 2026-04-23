@@ -1,9 +1,12 @@
+#pragma once
 #include <cstdint>
 #include <string>
 #include <unordered_map>
+#include <vector>
+#include <sstream>
+#include <stdexcept>
+#include <iostream>
 using namespace std;
-
-
 
 class RegisterFile{
     public:
@@ -44,7 +47,7 @@ class RegisterFile{
 
         int get_val(string regName);
         void set_val(string regName, int val);
-        void dump();
+        void dump() const;
 };
 
 
@@ -79,7 +82,7 @@ class CPU_Memory
         void set_addr(int addr, int val);
         void LW(string rDest, int offset, string r1); 
         void SW(string r1, int offset, string rDest);
-        void dump();
+        void dump() const; 
 };
 
 struct ControlSignals {
@@ -95,6 +98,23 @@ struct ControlSignals {
     
 };
 
+class Instruction { // dont think op and raw should be initialized with nop ???
+    public:
+        Opcode op = Opcode::NOP;
+        int rs = 0; // reg source
+        int rt = 0; // reg target
+        int rd = 0;
+        int shamt = 0; // shift amount for shift instructions
+        int32_t imm = 0; // immediate value for I-type instructions (ADDI, LW, SW)
+        int target = -1; // target address for branch/jump instructions (BEQ, J)
+        string label;
+        string raw = "NOP";
+        ControlSignals cs; // control signals determined during decode stage
+        
+        vector<string> tokenize_instr(const string &rawLine); // remove commas, extra spaces, etc
+        Opcode parseOpcode(const string& opText); // convert opcode text to enum
+
+};
 
 class Control_Unit{ // needs access to regFile and memory 
     private:
@@ -111,18 +131,7 @@ class Control_Unit{ // needs access to regFile and memory
         void write_back(); // write data back to regFile
 };
 
-class CPU
-{
-    public:
-        RegisterFile regFile;
-        CPU_ALU ALU;
-        CPU_Memory memory;
-        Control_Unit control_unit;
-        int PC; 
-        bool debugMode;
 
-        CPU();
-};
 
 // --- INSTRUCTION HANDILING --- //
 enum class Opcode {
@@ -141,19 +150,82 @@ enum class Opcode {
     NOP
 };
 
-class Instruction { // dont think op and raw should be initialized with nop ???
-    public:
-        Opcode op = Opcode::NOP;
-        int rs = 0; // reg source
-        int rt = 0; // reg target
-        int rd = 0;
-        int shamt = 0; // shift amount for shift instructions
-        int32_t imm = 0; // immediate value for I-type instructions (ADDI, LW, SW)
-        int target = -1; // target address for branch/jump instructions (BEQ, J)
-        string label;
-        
-        vector<string> tokenize_instr(const string &rawLine); // remove commas, extra spaces, etc
-        Opcode parseOpcode(const string& opText); // convert opcode text to enum
 
+
+// --- STATE REGISTERS --- //
+struct IF_ID { // fetch/decode pipeline register
+    bool valid = false;
+    int pc = -1;
+    Instruction instr;
 };
 
+struct ID_EX { // decode/execute 
+    bool valid = false;
+    int pc = -1;
+    Instruction instr;
+    int32_t rsVal = 0;
+    int32_t rtVal = 0;
+    ControlSignals control;
+};
+
+struct EX_MEM { // execute/memory
+    bool valid = false;
+    int pc = -1;
+    Instruction instr;
+    int32_t aluResult = 0;
+    int32_t rtVal = 0; 
+    int destReg = 0;
+    bool zero = false;
+    bool takeBranch = false;
+    int branchTarget = -1;
+    ControlSignals control;
+};
+
+struct MEM_WB { // memory/writeback
+    bool valid = false;
+    int pc = -1;
+    Instruction instr;
+    int32_t aluResult = 0;
+    int32_t memData = 0;
+    int destReg = 0;
+    ControlSignals control;
+};
+
+// --- MIPS SIMULATOR CPU --- //
+
+class CPU
+{
+    public:
+        RegisterFile regFile;
+        CPU_ALU ALU;
+        CPU_Memory memory;
+        Control_Unit control_unit;
+        vector<Instruction> program;
+        
+        int pc = 0;
+        int cycle = 0;
+        bool debugMode = false;
+        
+        IF_ID if_id;
+        ID_EX id_ex;
+        EX_MEM ex_mem;
+        MEM_WB mem_wb;
+
+
+        
+        // pipeline functions
+        IF_ID fetchStage();
+        ID_EX decodeStage(const IF_ID& current);
+        EX_MEM executeStage(const ID_EX& current);
+        MEM_WB memoryStage(const EX_MEM& current);
+        void writeBackStage(const MEM_WB& current);
+        void printPipelineState() const;
+
+        // cpu control functions
+        CPU(bool debug = false);
+        void run();
+        void loadProgram(const string& filename);
+        void printDebugState() const;
+        void printFinalState() const;
+
+};

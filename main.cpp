@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include "mips_simulator.hpp"
 using namespace std;
 
 /* Main Notes:
@@ -13,22 +14,31 @@ using namespace std;
 
 */
 
-int main(){
+int main(int argc, char* argv[]) {
 
-    ifstream file("mips_input.asm");
-    string line;
-
-    if(!file.is_open()){
-        cout << "Error opening file.";
+    if (argc < 2 || argc > 3) {
+        cerr << "Usage: ./mips_sim input.asm [debug]\n";
         return 1;
     }
 
-
-    while(getline(file, line)){
+    bool debug = false;
+    if (argc == 3) {
+        string flag = argv[2];
+        if (flag == "debug" || flag == "--debug" || flag == "-d") {
+            debug = true;
+        } else {
+            cerr << "Usage: ./mips_sim input.asm [debug]\n";
+            return 1;
+        }
     }
 
-
-    file.close();
-
-    return 0;
+    try {
+        CPU mips_sim(debug);
+        mips_sim.loadProgram(argv[1]);
+        mips_sim.run();
+        mips_sim.printFinalState();
+    } catch (const exception& ex) {
+        cerr << "Error: " << ex.what() << '\n'; 
+        return 1;
+    }
 }
