@@ -7,7 +7,7 @@ using namespace std;
 
 class RegisterFile{
     public:
-        int registers[32]; // holds 32 register
+        int registers[32] = {0}; // 32 register initialized to 0
         unordered_map<string, int> regMap{ // maps each register to index of registerFile
             {"$zero", 0},
             {"$at", 1},
@@ -44,6 +44,7 @@ class RegisterFile{
 
         int get_val(string regName);
         void set_val(string regName, int val);
+        void dump();
 };
 
 
@@ -70,36 +71,41 @@ class CPU_ALU
 class CPU_Memory
 {
     public:
-        int data_memory[1024];
-        RegisterFile regFile;
+        int data_memory[100];
+        RegisterFile &regFile;
 
         CPU_Memory(RegisterFile &_regFile);
         int get_addr(int addr);
         void set_addr(int addr, int val);
-        void LW(string rDest, int offset, int r1); 
-        void SW(string r1, int offest, string rDest);
+        void LW(string rDest, int offset, string r1); 
+        void SW(string r1, int offset, string rDest);
+        void dump();
+};
+
+struct ControlSignals {
+    bool regDst = false;
+    bool aluSrc = false; // use immediate value instead of reg value for 2nd ALU operand
+    bool memRead = false;
+    bool memWrite = false;
+    bool memToReg = false;
+    bool regWrite = false;
+    bool branch = false; // for beq
+    bool jump = false;
+    string aluOp = "NOP";
+    
 };
 
 
 class Control_Unit{ // needs access to regFile and memory 
     private:
-    // Control unit signals:
-        bool RegDest = false;
-        bool ALUOp = false;
-        bool ALUSrc = false;
-        bool MemRead = false;
-        bool MemWrite = false;
-        bool MemtoReg = false;
-        bool RegWrite = false;
-        bool Branch = false; // jump / beq
-
         RegisterFile &regFile; 
         CPU_Memory &memory;
-    
+
     public:
+        Instruction instrReg; // holds current instruction being processed
         Control_Unit(RegisterFile &_regFile, CPU_Memory &_memory);
-        void fetch(); // fetch instruction, update pc
-        void decode(); // decode instruction, read from register file
+        vector<string> fetch(const string& rawLine); // fetch instruction, update pc
+        Instruction decode(const string& rawLine, vector<string> tokens, const unordered_map<string, int>& labels); // decode instruction tokens, read from register file
         void execute(); // execute arithmetic instruction, calculate mem addr
         void mem(); // read/write data from/to memory
         void write_back(); // write data back to regFile
@@ -112,9 +118,42 @@ class CPU
         CPU_ALU ALU;
         CPU_Memory memory;
         Control_Unit control_unit;
-        int PC;
-        string IR;
+        int PC; 
         bool debugMode;
 
         CPU();
 };
+
+// --- INSTRUCTION HANDILING --- //
+enum class Opcode {
+    ADD,
+    ADDI,
+    SUB,
+    MUL,
+    AND_OP,
+    OR_OP,
+    SLL,
+    SRL,
+    LW,
+    SW,
+    BEQ,
+    J,
+    NOP
+};
+
+class Instruction { // dont think op and raw should be initialized with nop ???
+    public:
+        Opcode op = Opcode::NOP;
+        int rs = 0; // reg source
+        int rt = 0; // reg target
+        int rd = 0;
+        int shamt = 0; // shift amount for shift instructions
+        int32_t imm = 0; // immediate value for I-type instructions (ADDI, LW, SW)
+        int target = -1; // target address for branch/jump instructions (BEQ, J)
+        string label;
+        
+        vector<string> tokenize_instr(const string &rawLine); // remove commas, extra spaces, etc
+        Opcode parseOpcode(const string& opText); // convert opcode text to enum
+
+};
+
