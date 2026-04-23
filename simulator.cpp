@@ -4,6 +4,8 @@
 #include "mips_simulator.hpp"
 #include <vector>
 #include <regex>
+#include <fstream>
+#include <iomanip>
 #include <iostream>
 using namespace std;
 
@@ -22,18 +24,20 @@ int RegisterFile :: get_val(string regName){
 }
 
 void RegisterFile :: set_val(string regName, int val){
+    int regIndex = regMap[regName];
+    if (regIndex == 0) { // $zero is always 0
+        return;
+    }
     registers[regMap[regName]] = val;
 }
 
 void RegisterFile :: dump() const{
-    for (const auto& pair : regMap) {
-        cout << pair.first << ": " << registers[pair.second];
-        if (pair.second % 4 == 3) { // print 4 registers per line
-            cout << '\n';
-        } else {
-            cout << '\t';
-        }
+    cout << "\nRegister File\n";
+
+    for (const auto& [regName, index] : regMap) {
+        cout << regName << " = " << registers[index] << '\n';
     }
+
 }
 
 
@@ -68,7 +72,7 @@ void CPU_ALU :: AND(string rDest, string r1, string r2){
 }
 
 void CPU_ALU :: OR(string rDest, string r1, string r2){
-    int result = regFile.get_val(r1) || regFile.get_val(r2);
+    int result = regFile.get_val(r1) | regFile.get_val(r2);
     regFile.set_val(rDest, result);
 }
 
@@ -123,9 +127,13 @@ void CPU_Memory :: SW(string r1, int offset, string rDest){
 }
 
 void CPU_Memory :: dump() const{
+    cout << "\nData Memory\n";
     for (int i = 0; i < 100; i++) {
-        cout << "Address " << i << ": " << data_memory[i] << '\n';
+        if (data_memory[i] != 0) {
+            cout << "mem[" << i << "] = " << data_memory[i] << '\n';
+        }
     }
+  
 }
 
 
@@ -204,7 +212,7 @@ Instruction Control_Unit :: decode(const string& rawLine, vector<string> tokens,
             }
             instr.rd = regFile.regMap[tokens[1]];
             instr.rs = regFile.regMap[tokens[2]];
-            instr.rt = parseNumber(tokens[3]);
+            instr.rt = regFile.regMap[tokens[3]];
 
             instr.cs.regDst = true;
             instr.cs.regWrite = true;
@@ -216,7 +224,7 @@ Instruction Control_Unit :: decode(const string& rawLine, vector<string> tokens,
             }
             instr.rd = regFile.regMap[tokens[1]];
             instr.rs = regFile.regMap[tokens[2]];
-            instr.rt = parseNumber(tokens[3]);
+            instr.rt = regFile.regMap[tokens[3]];
             
             instr.cs.regDst = true;
             instr.cs.regWrite = true;
@@ -228,7 +236,7 @@ Instruction Control_Unit :: decode(const string& rawLine, vector<string> tokens,
             }
             instr.rd = regFile.regMap[tokens[1]];
             instr.rs = regFile.regMap[tokens[2]];
-            instr.rt = parseNumber(tokens[3]);
+            instr.rt = regFile.regMap[tokens[3]];
 
             instr.cs.regDst = true;
             instr.cs.regWrite = true;
@@ -240,7 +248,7 @@ Instruction Control_Unit :: decode(const string& rawLine, vector<string> tokens,
             }
             instr.rd = regFile.regMap[tokens[1]];
             instr.rs = regFile.regMap[tokens[2]];
-            instr.rt = parseNumber(tokens[3]);
+            instr.rt = regFile.regMap[tokens[3]];
 
             instr.cs.regDst = true;
             instr.cs.regWrite = true;
@@ -344,7 +352,8 @@ Instruction Control_Unit :: decode(const string& rawLine, vector<string> tokens,
 
 // --- CPU --- //
 
-CPU ::CPU(bool debug = false) : ALU(regFile), control_unit(regFile, memory), memory(regFile), debugMode(debug){}
+CPU ::CPU(bool debug) : ALU(regFile), memory(regFile), control_unit(regFile, memory), debugMode(debug) {}
+
 
 // --- PIPELINE STAGES --- //
 
@@ -371,6 +380,8 @@ ID_EX CPU :: decodeStage(const IF_ID& current) {
     next.rsVal = regFile.registers[current.instr.rs];
     next.rtVal = regFile.registers[current.instr.rt];
     next.control = current.instr.cs;
+
+    return next;
 }
 
 EX_MEM CPU :: executeStage(const ID_EX& current) {
@@ -574,7 +585,37 @@ void CPU :: run() {
     }
 }
 
-void loadProgram(const string& filename) {
+void CPU::loadProgram(const string& filename) {
+    ifstream fin(filename);
+    if (!fin) throw runtime_error("Cannot open file: " + filename);
+
+    vector<string> lines;
+    unordered_map<string,int> labels;
+    string line;
+    int addr = 0;
+
+    while (getline(fin, line)) {
+        size_t comment = line.find('#');
+        if (comment != string::npos) line = line.substr(0, comment);
+        if (line.empty()) continue;
+
+        size_t colon = line.find(':');
+        if (colon != string::npos) {
+            string label = line.substr(0, colon);
+            labels[label] = addr;
+            line = line.substr(colon + 1);
+        }
+
+        if (line.find_first_not_of(" \t\r\n") != string::npos) {
+            lines.push_back(line);
+            addr++;
+        }
+    }
+
+    for (string& raw : lines) {
+        auto tokens = control_unit.fetch(raw);
+        if (!tokens.empty()) program.push_back(control_unit.decode(raw, tokens, labels));
+    }
 }
 
 

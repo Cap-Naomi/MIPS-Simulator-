@@ -74,7 +74,7 @@ class CPU_ALU
 class CPU_Memory
 {
     public:
-        int data_memory[100];
+        int32_t data_memory[100] = {0}; // 100 memory addresses initialized to 0
         RegisterFile &regFile;
 
         CPU_Memory(RegisterFile &_regFile);
@@ -97,6 +97,23 @@ struct ControlSignals {
     string aluOp = "NOP";
     
 };
+
+enum class Opcode {
+    ADD,
+    ADDI,
+    SUB,
+    MUL,
+    AND_OP,
+    OR_OP,
+    SLL,
+    SRL,
+    LW,
+    SW,
+    BEQ,
+    J,
+    NOP
+};
+
 
 class Instruction { // dont think op and raw should be initialized with nop ???
     public:
@@ -131,24 +148,6 @@ class Control_Unit{ // needs access to regFile and memory
         void write_back(); // write data back to regFile
 };
 
-
-
-// --- INSTRUCTION HANDILING --- //
-enum class Opcode {
-    ADD,
-    ADDI,
-    SUB,
-    MUL,
-    AND_OP,
-    OR_OP,
-    SLL,
-    SRL,
-    LW,
-    SW,
-    BEQ,
-    J,
-    NOP
-};
 
 
 
